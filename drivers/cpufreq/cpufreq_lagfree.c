@@ -64,7 +64,9 @@ unsigned int suspended = 0;
 #define DEF_SAMPLING_DOWN_FACTOR		(4)
 #define MAX_SAMPLING_DOWN_FACTOR		(10)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000 * 1000)
-
+#define CONFIG_CPU_FREQ_SAMPLING_LATENCY_MULTIPLIER (1000)
+#define CONFIG_CPU_FREQ_MIN_TICKS (10)	
+		
 static void do_dbs_timer(struct work_struct *work);
 
 struct cpu_dbs_info_s {
@@ -286,21 +288,16 @@ static ssize_t store_ignore_nice_load(struct cpufreq_policy *policy,
 {
 	unsigned int input;
 	int ret;
-
 	ret = sscanf(buf, "%u", &input);
-
 	if (ret != 1)
 		return -EINVAL;
-
 	if (input > 100)
 		input = 100;
-
 	/ * no need to test here if freq_step is zero as the user might actually
 	 * want this, they would be crazy though :) * /
 	mutex_lock(&dbs_mutex);
 	dbs_tuners_ins.freq_step = input;
 	mutex_unlock(&dbs_mutex);
-
 	return count;
 }*/
 
@@ -401,11 +398,11 @@ static void dbs_check_cpu(int cpu)
 		this_dbs_info->requested_freq += freq_target;
 		if (this_dbs_info->requested_freq > policy->max)
 			this_dbs_info->requested_freq = policy->max;
-
+		
 		//Screen off mode
 		if (suspended && this_dbs_info->requested_freq > FREQ_SLEEP_MAX)
 		    this_dbs_info->requested_freq = FREQ_SLEEP_MAX;
-
+		    
 		//Screen off mode
 		if (!suspended && this_dbs_info->requested_freq < FREQ_AWAKE_MIN)
 		    this_dbs_info->requested_freq = FREQ_AWAKE_MIN;
@@ -460,14 +457,14 @@ static void dbs_check_cpu(int cpu)
 			this_dbs_info->requested_freq = policy->min;
 		else
 			this_dbs_info->requested_freq -= freq_target;
-
+		
 		if (this_dbs_info->requested_freq < policy->min)
 			this_dbs_info->requested_freq = policy->min;
-
+			
 		//Screen on mode
 		if (!suspended && this_dbs_info->requested_freq < FREQ_AWAKE_MIN)
 		    this_dbs_info->requested_freq = FREQ_AWAKE_MIN;
-
+		
 		//Screen off mode
 		if (suspended && this_dbs_info->requested_freq > FREQ_SLEEP_MAX)
 		    this_dbs_info->requested_freq = FREQ_SLEEP_MAX;
