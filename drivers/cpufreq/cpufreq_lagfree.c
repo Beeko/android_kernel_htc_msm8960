@@ -64,6 +64,8 @@ unsigned int suspended = 0;
 #define DEF_SAMPLING_DOWN_FACTOR		(4)
 #define MAX_SAMPLING_DOWN_FACTOR		(10)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000 * 1000)
+#define CONFIG_CPU_FREQ_SAMPLING_LATENCY_MULTIPLIER (1000)
+#define CONFIG_CPU_FREQ_MIN_TICKS (10)	
 		
 static void do_dbs_timer(struct work_struct *work);
 
