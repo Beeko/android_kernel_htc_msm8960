@@ -35,12 +35,12 @@
  * It helps to keep variable names smaller, simpler
  */
 
-#define DEF_FREQUENCY_UP_THRESHOLD			CONFIG_LAGFREE_MAX_LOAD
-#define DEF_FREQUENCY_DOWN_THRESHOLD			CONFIG_LAGFREE_MIN_LOAD
-#define FREQ_STEP_DOWN 					CONFIG_LAGFREE_FREQ_STEP_DOWN
-#define FREQ_SLEEP_MAX 					CONFIG_LAGFREE_FREQ_SLEEP_MAX
-#define FREQ_AWAKE_MIN 					CONFIG_LAGFREE_FREQ_AWAKE_MIN
-#define FREQ_STEP_UP_SLEEP_PERCENT 			CONFIG_LAGFREE_FREQ_STEP_UP_SLEEP_PERCENT
+#define DEF_FREQUENCY_UP_THRESHOLD			(50)
+#define DEF_FREQUENCY_DOWN_THRESHOLD		(15)
+#define FREQ_STEP_DOWN 						(160000)
+#define FREQ_SLEEP_MAX 						(320000)
+#define FREQ_AWAKE_MIN 						(480000)
+#define FREQ_STEP_UP_SLEEP_PERCENT 			(20)
 
 /*
  * The polling frequency of this governor depends on the capability of
@@ -107,19 +107,17 @@ static struct dbs_tuners dbs_tuners_ins = {
 	//.freq_step = 5,
 };
 
-static inline unsigned int get_cpu_idle_time(unsigned int cpu)
+/*static inline unsigned int get_cpu_idle_time(unsigned int cpu)
 {
 	unsigned int add_nice = 0, ret;
-
 	if (dbs_tuners_ins.ignore_nice)
-		add_nice = kcpustat_cpu(cpu).cpustat[CPUTIME_NICE];
-
-	ret = kcpustat_cpu(cpu).cpustat[CPUTIME_IDLE] +
-		kcpustat_cpu(cpu).cpustat[CPUTIME_IOWAIT] +
+		add_nice = kstat_cpu(cpu).cpustat.nice;
+	ret = kstat_cpu(cpu).cpustat.idle +
+		kstat_cpu(cpu).cpustat.iowait +
 		add_nice;
-
 	return ret;
 }
+*/
 
 /* keep track of frequency transitions */
 static int
@@ -273,7 +271,7 @@ static ssize_t store_ignore_nice_load(struct cpufreq_policy *policy,
 	for_each_online_cpu(j) {
 		struct cpu_dbs_info_s *j_dbs_info;
 		j_dbs_info = &per_cpu(cpu_dbs_info, j);
-		j_dbs_info->prev_cpu_idle_up = get_cpu_idle_time(j);
+		j_dbs_info->prev_cpu_idle_up = get_cpu_idle_time(j, 0);
 		j_dbs_info->prev_cpu_idle_down = j_dbs_info->prev_cpu_idle_up;
 	}
 	mutex_unlock(&dbs_mutex);
@@ -286,21 +284,16 @@ static ssize_t store_ignore_nice_load(struct cpufreq_policy *policy,
 {
 	unsigned int input;
 	int ret;
-
 	ret = sscanf(buf, "%u", &input);
-
 	if (ret != 1)
 		return -EINVAL;
-
 	if (input > 100)
 		input = 100;
-
 	/ * no need to test here if freq_step is zero as the user might actually
 	 * want this, they would be crazy though :) * /
 	mutex_lock(&dbs_mutex);
 	dbs_tuners_ins.freq_step = input;
 	mutex_unlock(&dbs_mutex);
-
 	return count;
 }*/
 
@@ -366,7 +359,7 @@ static void dbs_check_cpu(int cpu)
 	idle_ticks = UINT_MAX;
 
 	/* Check for frequency increase */
-	total_idle_ticks = get_cpu_idle_time(cpu);
+	total_idle_ticks = get_cpu_idle_time(cpu, 0);
 	tmp_idle_ticks = total_idle_ticks -
 		this_dbs_info->prev_cpu_idle_up;
 	this_dbs_info->prev_cpu_idle_up = total_idle_ticks;
@@ -401,11 +394,11 @@ static void dbs_check_cpu(int cpu)
 		this_dbs_info->requested_freq += freq_target;
 		if (this_dbs_info->requested_freq > policy->max)
 			this_dbs_info->requested_freq = policy->max;
-
+		
 		//Screen off mode
 		if (suspended && this_dbs_info->requested_freq > FREQ_SLEEP_MAX)
 		    this_dbs_info->requested_freq = FREQ_SLEEP_MAX;
-
+		    
 		//Screen off mode
 		if (!suspended && this_dbs_info->requested_freq < FREQ_AWAKE_MIN)
 		    this_dbs_info->requested_freq = FREQ_AWAKE_MIN;
@@ -460,14 +453,14 @@ static void dbs_check_cpu(int cpu)
 			this_dbs_info->requested_freq = policy->min;
 		else
 			this_dbs_info->requested_freq -= freq_target;
-
+		
 		if (this_dbs_info->requested_freq < policy->min)
 			this_dbs_info->requested_freq = policy->min;
-
+			
 		//Screen on mode
 		if (!suspended && this_dbs_info->requested_freq < FREQ_AWAKE_MIN)
 		    this_dbs_info->requested_freq = FREQ_AWAKE_MIN;
-
+		
 		//Screen off mode
 		if (suspended && this_dbs_info->requested_freq > FREQ_SLEEP_MAX)
 		    this_dbs_info->requested_freq = FREQ_SLEEP_MAX;
@@ -534,7 +527,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			j_dbs_info = &per_cpu(cpu_dbs_info, j);
 			j_dbs_info->cur_policy = policy;
 
-			j_dbs_info->prev_cpu_idle_up = get_cpu_idle_time(cpu);
+			j_dbs_info->prev_cpu_idle_up = get_cpu_idle_time(cpu, 0);
 			j_dbs_info->prev_cpu_idle_down
 				= j_dbs_info->prev_cpu_idle_up;
 		}
